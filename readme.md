@@ -12,4 +12,5 @@ Possibile stuff to do:
 - Voting for suggestions?
 - POSTING NEW ONES???
 
-https://questden.org/kusaba/questarch/src/
+Examples:
+- Tozol Quest archived: https://media.lunar.exchange/tozol-quest/
