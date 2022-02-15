@@ -2,8 +2,10 @@ using RazorEngineCore;
 
 namespace QuestReader
 {
-    public class HtmlSafeTemplate : RazorEngineTemplateBase
+    public class HtmlSafeTemplate<TModel> : RazorEngineTemplateBase
     {
+        public new TModel Model { get; set; }
+
         class RawContent
         {
             public object Value { get; set; }
@@ -14,22 +16,21 @@ namespace QuestReader
             }
         }
 
-
-        public object Raw(object value)
+        public static object Raw(object value)
         {
             return new RawContent(value);
         }
 
-        public override Task WriteAsync(object obj = null)
+        public override Task WriteAsync(object? obj = null)
         {
-            object value = obj is RawContent rawContent
+            var value = obj is not null and RawContent rawContent
                 ? rawContent.Value
                 : System.Web.HttpUtility.HtmlEncode(obj);
 
             return base.WriteAsync(value);
         }
 
-        public override Task WriteAttributeValueAsync(string prefix, int prefixOffset, object value, int valueOffset, int valueLength, bool isLiteral)
+        public override Task WriteAttributeValueAsync(string prefix, int prefixOffset, object? value, int valueOffset, int valueLength, bool isLiteral)
         {
             value = value is RawContent rawContent
                 ? rawContent.Value

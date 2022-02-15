@@ -1,3 +1,7 @@
+
+@namespace QuestReader
+@inherits HtmlSafeTemplate<TemplateModel>
+
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -35,6 +39,7 @@
 
         <!-- It's just Plausible Analytics - based on ip/etc and daily seed, no incoming requests log. Please email me if you think I am in violation of GDPR/etc -->
         <script async defer data-domain="media.lunar.exchange" src="/js/aluminum.js"></script>
+        <script async defer src="main.js"></script>
     </head>
     <body>
         <header>
@@ -69,7 +74,7 @@
             }
         </main>
         <footer>
-            <p>Ⓒ @Model.Metadata.Author @Model.Posts[0].Date.Year - @Model.Posts[Model.Posts.Count -1].Date.Year, page generated with quest_reader by <a href="https://saphi.re">Saphire</a></p>
+            <p>Ⓒ @Model.Metadata.Author @Model.Posts[0].Date.Year - @Model.Posts[Model.Posts.Count -1].Date.Year, page generated with <span><a href="https://source.lunar.exchange/Saphire/quest-reader">quest-reader</a> v.<span class="commit-hash">@Model.ToolVersion</span></span> by <a href="https://saphi.re">Saphire</a></p>
         </footer>
     </body>
 </html>
