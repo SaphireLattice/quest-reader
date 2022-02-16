@@ -1,11 +1,10 @@
 namespace QuestReader.Services;
 
 using System.Reflection;
-using RazorEngineCore;
 
 public class Generator
 {
-    public IRazorEngineCompiledTemplate<HtmlSafeTemplate<TemplateModel>> RazorTemplate { get; set; }
+    public StandaloneTemplate<TemplateModel> RazorTemplate { get; set; }
 
     public string QuestName { get; set; }
 
@@ -27,38 +26,34 @@ public class Generator
             p.Chapter = PostsSource.Metadata.Chapters.Single(c => (c.Announce ?? c.Start) == p.Id);
         });
 
-        var razorEngine = new RazorEngine();
+        var razorEngine = new RazorStandalone<StandaloneTemplate<TemplateModel>>("QuestReader");
         var templateFile = "page_template.cshtml";
         var baseUrl = "";
-        RazorTemplate = razorEngine.Compile<HtmlSafeTemplate<TemplateModel>>(
-            File.ReadAllText("page_template.cshtml"),
-            option => {
-                option.AddAssemblyReferenceByName("System.Collections");
-                option.AddAssemblyReferenceByName("System.Private.Uri");
-            }
-        );
+        RazorTemplate = razorEngine.Compile(
+            "page_template.cshtml"
+        ) ?? throw new Exception("No template");
 
         Console.WriteLine($"Using \"{templateFile}\" with base URL {baseUrl}");
     }
 
     public string Run()
     {
-        string result = RazorTemplate.Run(instance =>
+        RazorTemplate.Model =  new TemplateModel
         {
-            instance.Model = new TemplateModel
-            {
-                Metadata = PostsSource.Metadata,
-                Posts = PostsSource.Accepted,
-                Now = @DateTime.UtcNow,
-                //BaseUrl = "assets"
-                BaseUrl = $"/static/{QuestName}",
-                ToolVersion = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown"
-            };
-        });
+            Metadata = PostsSource.Metadata,
+            Posts = PostsSource.Accepted,
+            AllPosts = PostsSource.Posts,
+            Now = @DateTime.UtcNow,
+            BaseUrl = $"/static/{QuestName}",
+            ToolVersion = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown"
+        };
 
-        Console.WriteLine($"Template output {result.Length} bytes");
+        var outputStream = new MemoryStream();
+        RazorTemplate.ExecuteAsync(outputStream).Wait();
+
         var outputPath = Path.Join(QuestPath, "output.html");
-        File.WriteAllText(outputPath, result);
+        Console.WriteLine($"Template output {outputStream.Length} bytes");
+        File.WriteAllBytes(outputPath, outputStream.ToArray());
         Console.WriteLine($"Wrote output to {outputPath}");
         return outputPath;
     }

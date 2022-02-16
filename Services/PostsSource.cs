@@ -2,6 +2,7 @@ namespace QuestReader.Services;
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 public class PostsSource
 {
@@ -16,7 +17,8 @@ public class PostsSource
         var options = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            WriteIndented = true
         };
 
         using var fileStream = File.OpenRead(Path.Combine(basePath, "metadata.json"));
@@ -39,5 +41,24 @@ public class PostsSource
                 ?? throw new InvalidDataException("Empty deserialisation result for quest metadata");
         Accepted = Posts.Where(p => ids.Contains(p.Id)).ToList();
         Console.Out.WriteLine($"Loaded a list of {Accepted.Count} posts, referencing {Accepted.Where(a => a.File is not null).Count()} files");
+
+        var rx = new Regex(@"data-post-ref=""(\d+)""",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        foreach (var post in Posts)
+        {
+            var matches = rx.Matches(post.RawHtml);
+            if (!matches.Any())
+                continue;
+
+            post.RepliesTo = new List<int>();
+            foreach (Match match in matches)
+            {
+                var replyId = int.Parse(match.Groups[1].Value);
+                var found = Posts.FirstOrDefault(p => p.Id == replyId);
+                if (found is null)
+                    continue;
+                post.RepliesTo.Add(replyId);
+            }
+        }
     }
 }

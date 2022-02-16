@@ -1,6 +1,7 @@
-
 @namespace QuestReader
-@inherits HtmlSafeTemplate<TemplateModel>
+@using System
+@using System.Linq
+@inherits StandaloneTemplate<TemplateModel>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -11,8 +12,9 @@
 
         @{
             var title = $"\"{Model.Metadata.Name}\" by {Model.Metadata.Author}";
-            var description = $"Quest single-page archive. Generated {Model.Now} (UTC), {Model.Posts.Count} posts, {Model.Metadata.Chapters.Count} chapters";
+            var autoDescription = $"Quest single-page archive. Generated {Model.Now} (UTC), {Model.Posts.Count} posts, {Model.Metadata.Chapters.Count} chapters";
             // A hack, tbh, should be something better instead..
+            var description = Model.Metadata.Description ?? autoDescription;
             var preview = $"https://media.lunar.exchange{Model.BaseUrl}/{Model.Metadata.SocialPreview}";
         }
         <title>@title</title>
@@ -44,10 +46,33 @@
     <body>
         <header>
             <h1><span class="quest-title">@Model.Metadata.Name</span> by <a href="@Model.Metadata.AuthorPage" class="quest-author">@Model.Metadata.Author</a></h1>
-            <p>@description</p>
-            <p>Posts from @Model.Posts[0].Date - @Model.Posts[Model.Posts.Count -1].Date</p>
+            @if (Model.Metadata.Description is not null)
+            {
+            <p>@Model.Metadata.Description</p>
+            }
+            <p>@autoDescription</p>
+            <p>Posts from @Model.Posts.First().Date - @Model.Posts.Last().Date</p>
         </header>
         <main>
+            @{
+                Func<(ThreadPost, bool), object> makePost =
+                @<article id="post-@item.Item1.Id" class="post@(item.Item1 is not null ? " image-post" : "")@(item.Item2 ? "" : " suggestion-post")">
+                    @if (item.Item1.Title is not null) {
+                        <h2 class="post-self-title">@item.Item1.Title</h2>
+                    }
+                    <h3 class="post-header"><a class="post-anchor" href="#post-@item.Item1.Id"><span class="post-anchor-mark">#</span>@item.Item1.Id</a> <span class="author">@item.Item1.Author</span> <time>@item.Item1.Date</time></h3>
+                    <div class="post-content">
+                        @if (item.Item1.File is not null) {
+                        <figure class="post-image">
+                            <img src="@Model.BaseUrl/@item.Item1.File" alt="@item.Item1.Filename">
+                        </figure>
+                        }
+                        @if (item.Item1.RawHtml.Trim().Length > 0) {
+                        <div class="post-text">@Raw(item.Item1.RawHtml)</div>
+                        }
+                    </div>
+                </article>;
+            }
             @foreach (var item in Model.Posts)
             {
                 @if (item.IsChapterAnnounce) {
@@ -55,26 +80,19 @@
                         <a class="chapter-anchor" href="#chapter-@item.Chapter.Id">#</a> <span class="chapter-name">@item.Chapter.Name</span> - <span class="chapter-subtitle">@item.Chapter.Subtitle</span>
                     </h2>
                 }
-                <article id="post-@item.Id" class="post@(item.File is not null ? " image-post" : "")">
-                    @if (item.Title is not null) {
-                        <h2 class="post-self-title">@item.Title</h2>
+                if (item.RepliesTo is not null && item.RepliesTo.Count > 0)
+                {
+                    @foreach (var replyId in item.RepliesTo)
+                    {
+                        @makePost((Model.AllPosts.First(p => p.Id == replyId), false))
                     }
-                    <h3 class="post-header"><a class="post-anchor" href="#post-@item.Id"><span class="post-anchor-mark">#</span>@item.Id</a> <span class="author">@item.Author</span> <time>@item.Date</time></h3>
-                    <div class="post-content">
-                        @if (item.File is not null) {
-                        <figure class="post-image">
-                            <img src="@Model.BaseUrl/@item.File" alt="@item.Filename">
-                        </figure>
-                        }
-                        @if (item.RawHtml.Trim().Length > 0) {
-                        <blockquote>@Raw(item.RawHtml)</blockquote>
-                        }
-                    </div>
-                </article>
+                }
+
+                @makePost((item, true));
             }
         </main>
         <footer>
-            <p>Ⓒ @Model.Metadata.Author @Model.Posts[0].Date.Year - @Model.Posts[Model.Posts.Count -1].Date.Year, page generated with <span><a href="https://source.lunar.exchange/Saphire/quest-reader">quest-reader</a> v.<span class="commit-hash">@Model.ToolVersion</span></span> by <a href="https://saphi.re">Saphire</a></p>
+            <p>Ⓒ @Model.Metadata.Author @Model.Posts.First().Date.Year - @Model.Posts.Last().Date.Year, page generated with <span><a href="https://source.lunar.exchange/Saphire/quest-reader">quest-reader</a> v.<span class="commit-hash">@Model.ToolVersion</span></span> by <a href="https://saphi.re">Saphire</a></p>
         </footer>
     </body>
 </html>

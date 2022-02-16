@@ -1,4 +1,3 @@
-
 using QuestReader.Services;
 using System.CommandLine;
 
