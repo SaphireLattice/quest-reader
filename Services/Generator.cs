@@ -1,6 +1,7 @@
 namespace QuestReader.Services;
 
 using System.Reflection;
+using QuestReader.Models;
 
 public class Generator
 {
@@ -21,7 +22,8 @@ public class Generator
 
         var chapterAnnounces = PostsSource.Metadata.Chapters.Select(c => c.Announce ?? c.Start);
 
-        PostsSource.Accepted.Where(p => chapterAnnounces.Contains(p.Id)).ToList().ForEach(p => {
+        PostsSource.Accepted.Where(p => chapterAnnounces.Contains(p.Id)).ToList().ForEach(p =>
+        {
             p.IsChapterAnnounce = true;
             p.Chapter = PostsSource.Metadata.Chapters.Single(c => (c.Announce ?? c.Start) == p.Id);
         });
@@ -38,7 +40,7 @@ public class Generator
 
     public string Run()
     {
-        RazorTemplate.Model =  new TemplateModel
+        RazorTemplate.Model = new TemplateModel
         {
             Metadata = PostsSource.Metadata,
             Posts = PostsSource.Accepted,

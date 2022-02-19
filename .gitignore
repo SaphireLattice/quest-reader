@@ -3,3 +3,7 @@
 /rust
 /obj
 /bin
+/cache
+omnisharp.json
+thread_*.json
+*.js

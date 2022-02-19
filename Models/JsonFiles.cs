@@ -1,6 +1,7 @@
-namespace QuestReader;
+namespace QuestReader.Models;
 
 using System.Text.Json.Serialization;
+using QuestReader.Models.ParsedContent;
 
 public record ThreadPost
 {
@@ -8,6 +9,7 @@ public record ThreadPost
     public string Author { get; set; }
     public string Uid { get; set; }
     public string RawHtml { get; set; }
+    public ParsedContent.ParsedContent? ParsedContent { get; set; }
     public string? File { get; set; }
     public string? Filename { get; set; }
     public string? Title { get; set; }
@@ -42,29 +44,4 @@ public record ChapterMetadata
     public int Start { get; set; }
     public int? Announce { get; set; }
     public int End { get; set; }
-}
-
-public enum ParamType
-{
-    Invalid,
-    PostId,
-    UniqueId,
-    Username
-}
-
-public enum ParamError
-{
-    Invalid,
-    NoError,
-    NotFound
-}
-
-public class TemplateModel
-{
-    public Metadata Metadata { get; set; }
-    public DateTime Now { get; set; }
-    public List<ThreadPost> Posts { get; set; }
-    public List<ThreadPost> AllPosts { get; set; }
-    public string BaseUrl { get; set; }
-    public string ToolVersion { get; set; }
 }

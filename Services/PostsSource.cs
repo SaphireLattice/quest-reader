@@ -3,6 +3,7 @@ namespace QuestReader.Services;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using QuestReader.Models;
 
 public class PostsSource
 {
@@ -27,7 +28,8 @@ public class PostsSource
         fileStream.Dispose();
 
         Console.Out.WriteLine($"Loaded metadata: {Metadata}");
-        Posts = Metadata.Threads.SelectMany(tId => {
+        Posts = Metadata.Threads.SelectMany(tId =>
+        {
             using var fileStream = File.OpenRead(Path.Combine(basePath, $"thread_{tId}.json"));
             var threadData = JsonSerializer.Deserialize<List<ThreadPost>>(fileStream, options)
                 ?? throw new InvalidDataException("Empty deserialisation result for thread data");

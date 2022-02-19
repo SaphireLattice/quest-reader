@@ -18,6 +18,7 @@
   </ItemGroup>
   <PropertyGroup>
     <VersionPrefix>1.0.1</VersionPrefix>
+    <RootNamespace>QuestReader</RootNamespace>
   </PropertyGroup>
   <Target Name="SetSourceRevisionId" BeforeTargets="InitializeSourceControlInformation">
     <Exec

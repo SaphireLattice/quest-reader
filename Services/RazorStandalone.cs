@@ -1,3 +1,5 @@
+namespace QuestReader.Services;
+
 using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Razor.Language;
@@ -5,8 +7,6 @@ using Microsoft.AspNetCore.Razor.Language.Extensions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
-
-namespace QuestReader;
 
 public class RazorStandalone<TTemplate>
 {
@@ -63,7 +63,7 @@ public class RazorStandalone<TTemplate>
         }
 
         var asm = Assembly.Load(memoryStream.ToArray());
-        var templateInstance = (TTemplate?) Activator.CreateInstance(asm.GetType("QuestReader.Template"));
+        var templateInstance = (TTemplate?)Activator.CreateInstance(asm.GetType("QuestReader.Template"));
         if (templateInstance is null)
             throw new Exception("Template is null");
 
@@ -127,7 +127,7 @@ public abstract class StandaloneTemplate<TModel>
         await Output.WriteAsync(literal);
     }
 
-    string? Suffix {get;set;}
+    string? Suffix { get; set; }
 
     public async Task BeginWriteAttributeAsync(
         string name,
@@ -145,7 +145,8 @@ public abstract class StandaloneTemplate<TModel>
         await WriteAsync(value);
     }
 
-    public async Task EndWriteAttributeAsync() {
+    public async Task EndWriteAttributeAsync()
+    {
         await WriteLiteralAsync(Suffix!);
         Suffix = null;
     }
