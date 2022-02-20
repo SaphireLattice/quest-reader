@@ -4,6 +4,7 @@
 /obj
 /bin
 /cache
+output.html
 omnisharp.json
 thread_*.json
 *.js

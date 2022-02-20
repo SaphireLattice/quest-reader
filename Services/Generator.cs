@@ -11,31 +11,23 @@ public class Generator
 
     public PostsSource PostsSource { get; set; }
 
-    public string QuestPath { get; set; }
+    public string AssetsPath { get; set; }
+
+    public string OutputPath { get; set; }
 
     public Generator(string questName)
     {
-        QuestPath = $"quests/{questName}";
-
         QuestName = questName;
-        PostsSource = new PostsSource(questName, QuestPath);
-
-        var chapterAnnounces = PostsSource.Metadata.Chapters.Select(c => c.Announce ?? c.Start);
-
-        PostsSource.Accepted.Where(p => chapterAnnounces.Contains(p.Id)).ToList().ForEach(p =>
-        {
-            p.IsChapterAnnounce = true;
-            p.Chapter = PostsSource.Metadata.Chapters.Single(c => (c.Announce ?? c.Start) == p.Id);
-        });
+        AssetsPath = $"/static/{questName}";
+        PostsSource = new PostsSource(questName);
 
         var razorEngine = new RazorStandalone<StandaloneTemplate<TemplateModel>>("QuestReader");
         var templateFile = "page_template.cshtml";
-        var baseUrl = "";
         RazorTemplate = razorEngine.Compile(
             "page_template.cshtml"
         ) ?? throw new Exception("No template");
 
-        Console.WriteLine($"Using \"{templateFile}\" with base URL {baseUrl}");
+        Console.WriteLine($"Using \"{templateFile}\" with base URL {AssetsPath}");
     }
 
     public string Run()
@@ -43,17 +35,17 @@ public class Generator
         RazorTemplate.Model = new TemplateModel
         {
             Metadata = PostsSource.Metadata,
-            Posts = PostsSource.Accepted,
+            Posts = PostsSource.Accepted.ToList(),
             AllPosts = PostsSource.Posts,
             Now = @DateTime.UtcNow,
-            BaseUrl = $"/static/{QuestName}",
+            AssetsPath = AssetsPath.TrimEnd('/'), // Strip trailing slash
             ToolVersion = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown"
         };
 
         var outputStream = new MemoryStream();
         RazorTemplate.ExecuteAsync(outputStream).Wait();
 
-        var outputPath = Path.Join(QuestPath, "output.html");
+        var outputPath = Path.Join(OutputPath ?? PostsSource.BasePath, "output.html");
         Console.WriteLine($"Template output {outputStream.Length} bytes");
         File.WriteAllBytes(outputPath, outputStream.ToArray());
         Console.WriteLine($"Wrote output to {outputPath}");

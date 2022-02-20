@@ -11,17 +11,17 @@ namespace QuestReader.Services;
 
 public class QuestdenParse
 {
-    static readonly Version LatestCompatibleVersion = new(1, 0, 2);
+    public static readonly Version LatestCompatibleVersion = new(1, 0, 2);
 
     static Regex RefRegex { get; } = new Regex(@"^ref\|(questarch|questdis|quest)\|(\d+)\|(\d+)$", RegexOptions.Compiled);
 
-    static Regex LongRefRegex { get; } = new Regex(@"(?:https?://)?(www.)?(tgchan|questden).org/kusaba/(questarch|questdis|quest)/res/(\d+).html#?i?(\d+)?$", RegexOptions.Compiled);
+    static Regex LongRefRegex { get; } = new Regex(@"(?:https?://)?(?:www.)?(?:tgchan|questden).org/kusaba/(questarch|questdis|quest)/res/(\d+).html#?i?(\d+)?$", RegexOptions.Compiled);
 
     static Regex DateRegex { get; } = new Regex(@"(\d{4,4})\/(\d\d)\/(\d\d)\(\w+\)(\d\d):(\d\d)", RegexOptions.Compiled);
 
     static Regex FilenameRegex { get; } = new Regex(@"File \d+\.[^ ]+ - \([\d\.KMG]+B , \d+x\d+ , (.*) \)", RegexOptions.Compiled);
 
-    public static async Task GetThread(int threadId)
+    public static async Task<IEnumerable<ThreadPost>> GetThread(int threadId, string destinationPath)
     {
         var url = $"http://questden.org/kusaba/quest/res/{threadId}.html";
         var options = new JsonSerializerOptions
@@ -31,26 +31,29 @@ public class QuestdenParse
             WriteIndented = true
         };
 
-        var doc = new HtmlDocument();
-        doc.OptionEmptyCollection = true;
+        var doc = new HtmlDocument
+        {
+            OptionEmptyCollection = true
+        };
 
-        if (File.Exists($"thread_{threadId}.json"))
-            return;
+        // Todo: check if the thread data & parsed entity is of same version
+        if (File.Exists(Path.Join(destinationPath, $"thread_{threadId}.json")))
+            return JsonSerializer.Deserialize<IEnumerable<ThreadPost>>(File.ReadAllText("asd"), options)
+                ?? throw new NullReferenceException("No data loaded");
 
-        var cacheFile = $"cache/QuestDen-{threadId}.html";
+        var cacheDir = Path.Join(destinationPath, "cache");
+        var cacheFile = Path.Join(cacheDir, $"QuestDen-{threadId}.html");
         if (!File.Exists(cacheFile))
         {
             var httpClient = new HttpClient();
             var content = await httpClient.GetStringAsync(url);
-            if (!Directory.Exists("cache"))
-                Directory.CreateDirectory("cache");
+            if (!Directory.Exists(cacheDir))
+                Directory.CreateDirectory(cacheDir);
             File.WriteAllText(cacheFile, content);
             doc.LoadHtml(content);
         }
         else
-        {
             doc.LoadHtml(File.ReadAllText(cacheFile));
-        }
 
         var nodes = doc.DocumentNode.SelectNodes(".//*[@class='reply']|.//form[@id='delform']");
 
@@ -59,11 +62,11 @@ public class QuestdenParse
         {
             var post = ParsePost(node, threadId);
             posts.Add(post);
-            //var postJson = JsonSerializer.Serialize(post);
-            //Console.Out.WriteLine($"{postJson}\n");
         }
-        File.WriteAllText($"thread_{threadId}.json", JsonSerializer.Serialize(posts, options));
+
+        return posts;
     }
+
     public static ThreadPost ParsePost(string postHtml, int threadId)
     {
         var htmlDoc = new HtmlDocument();
@@ -106,7 +109,7 @@ public class QuestdenParse
         post.File = postNode
             .SelectNodes("./div[@class='postwidth']//*[@class='filesize']/a")
             .SingleOrDefault()
-            ?.Attributes["href"].Value.Trim();
+            ?.Attributes["href"].DeEntitizeValue.Replace("/kusaba/questarch/src/", "").Trim();
 
         var filenameRaw = postNode
             .SelectNodes("./div[@class='postwidth']//*[@class='filesize']")
@@ -148,18 +151,14 @@ public class QuestdenParse
         return post;
     }
 
-    public static ParsedContent ParseContent(string postHtml)
+    public static RootNode ParseContent(string postHtml)
     {
         var htmlDoc = new HtmlDocument();
         htmlDoc.LoadHtml(postHtml);
-        var rootNode = RecursiveParse(htmlDoc.DocumentNode);
-        if (rootNode is not RootNode)
+        var parseResult = RecursiveParse(htmlDoc.DocumentNode);
+        if (parseResult is not RootNode rootNode)
             throw new Exception("Parsing returned a non-RootNode root");
-        return new ParsedContent
-        {
-            Version = LatestCompatibleVersion,
-            Nodes = ((RootNode)rootNode).Nodes
-        };
+        return rootNode;
     }
 
     private static ContentNode RecursiveParse(HtmlNode node, ContentNode? parentNode = null)
@@ -167,8 +166,12 @@ public class QuestdenParse
         if (node is null)
             throw new NullReferenceException("Html node is null");
 
-        if (node is HtmlTextNode textNode)
-            return new TextNode { Text = HttpUtility.HtmlDecode(textNode.Text.Trim()) };
+        if (node is HtmlTextNode textNode) {
+            var decoded = HttpUtility.HtmlDecode(textNode.Text.Trim());
+            if (parentNode is QuoteNode)
+                decoded = Regex.Replace(decoded, @"^>\s*", "");
+            return new TextNode { Text = decoded };
+        }
 
         if (node.NodeType is HtmlNodeType.Document or HtmlNodeType.Element)
         {
@@ -206,13 +209,20 @@ public class QuestdenParse
                     && match.Success
                     => new ReferenceNode
                     {
-                        PostId = int.Parse((match.Groups[5]?.Success ?? false) ? match.Groups[5].Value : match.Groups[4].Value),
-                        ThreadId = int.Parse(match.Groups[4].Value),
+                        PostId = int.Parse((match.Groups[3]?.Success ?? false) ? match.Groups[3].Value : match.Groups[2].Value),
+                        ThreadId = int.Parse(match.Groups[2].Value),
+                        ReferenceType = match.Groups[1].Value switch
+                        {
+                            "quest" => ReferenceType.QuestActive,
+                            "questarch" => ReferenceType.QuestArchive,
+                            "questdis" => ReferenceType.QuestDiscussion,
+                            _ => throw new InvalidDataException(""),
+                        },
                         LongReference = true
                     },
                 "a" when !node.GetClasses().Any() => new ExternalLinkNode { Destination = node.GetAttributeValue("href", "ERROR") },
                 "br" => new NewlineNode { },
-                "#document" => new RootNode { },
+                "#document" => new RootNode { Version = LatestCompatibleVersion },
                 "i" => new ItalicsNode { },
                 "b" => new BoldNode { },
                 "strike" => new StrikeoutNode { },
@@ -232,6 +242,24 @@ public class QuestdenParse
                     && maybeStyle.DeEntitizeValue == @"border-bottom: 1px solid"
                     => new UnderlineNode { },
                 "span" when
+                    node.GetAttributes() is var attributes
+                    && attributes.Count() == 1
+                    && attributes.Single() is var maybeStyle
+                    && maybeStyle.Name == "style"
+                    && maybeStyle.DeEntitizeValue == @"font-size:small;"
+                    => new SmallFontNode { },
+                "span" when
+                    node.GetAttributes() is var attributes
+                    && attributes.Count() == 1
+                    && attributes.Single() is var maybeStyle
+                    && maybeStyle.Name == "style"
+                    // Let's hope nobody used any colors beyond the hex ones...
+                    // But probably will need to add support for that. Eh, later!
+                    && Regex.Match(maybeStyle.DeEntitizeValue, @"^color:\s*(#[0-9a-f]{3,8});?$", RegexOptions.IgnoreCase) is var match
+                    && match is not null
+                    && match.Success
+                    => new ColorNode { Color = match.Groups[1].Value },
+                "span" when
                     node.Descendants().Where(
                         d => d is not HtmlTextNode
                             || (d is HtmlTextNode textNode
@@ -241,8 +269,9 @@ public class QuestdenParse
                     && descendants.Single() is HtmlNode innerNode
                     && innerNode.Name == "iframe"
                     && innerNode.GetAttributeValue("src", null).Contains("youtube")
-                    => new TextNode { Text = $"Here be youtube link {innerNode.GetAttributeValue("src", null)}"},
-                "div" when
+                    => new YoutubeEmbedNode { VideoLink = innerNode.GetAttributes().Single(a => a.Name == "src").DeEntitizeValue },
+                // I have seen both being used but I am not sure as to the difference. Different software version?
+                "div" or "span" when
                     node.GetAttributes() is var attributes
                     && attributes.Count() == 1
                     && attributes.Single() is var maybeStyle
@@ -251,9 +280,6 @@ public class QuestdenParse
                     => new InlineCodeNode { },
                 _ => throw new InvalidDataException($"Unknown node parse attempt: {node.Name} #{node.Id} .{string.Join(".", node.GetClasses())}\n{node.OuterHtml}")
             };
-            //if (outNode is ExternalLinkNode refNode)
-            //Console.Out.WriteLine($"Refnode: {string.Join(", ", node.GetClasses())} {node.OuterHtml}");
-            //Console.Out.WriteLine($"{node.Name}: {outNode.GetType().Name} {outNode is ContainerNode} {node.ChildNodes.Count} children, {node.Descendants().Count()} descendants");
             if (outNode is ContainerNode container)
             {
                 container.Nodes = node.ChildNodes

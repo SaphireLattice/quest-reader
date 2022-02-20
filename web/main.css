@@ -152,8 +152,11 @@ a.post-anchor:hover .post-anchor-mark {
 
 /* In-chapter stuff */
 
-.quoted-text {
+.text-quote {
     color: var(--fg-muted);
+}
+.text-quote::before {
+    content: "> "
 }
 
 .post-reference {

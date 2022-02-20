@@ -9,7 +9,7 @@ public record ThreadPost
     public string Author { get; set; }
     public string Uid { get; set; }
     public string RawHtml { get; set; }
-    public ParsedContent.ParsedContent? ParsedContent { get; set; }
+    public RootNode? ParsedContent { get; set; }
     public string? File { get; set; }
     public string? Filename { get; set; }
     public string? Title { get; set; }
@@ -18,8 +18,10 @@ public record ThreadPost
 
     [JsonIgnore]
     public bool IsChapterAnnounce { get; set; } = false;
+    [JsonIgnore]
     public ChapterMetadata? Chapter { get; set; }
-    public List<int>? RepliesTo { get; set; }
+    [JsonIgnore]
+    public bool AuthorPost { get; set; } = false;
 }
 
 public record Metadata
