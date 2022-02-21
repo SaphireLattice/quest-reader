@@ -67,7 +67,7 @@
                     <div class="post-content">
                         @if (item.File is not null) {
                         <figure class="post-image">
-                            <img src="@Model.AssetsPath/@item.File" alt="@item.Filename">
+                            <img data-src="@Model.AssetsPath/@item.File" alt="@item.Filename" data-height="@item.FileHeight" data-width="@item.FileWidth">
                         </figure>
                         }
                         @if (item.RawHtml.Trim().Length > 0) {

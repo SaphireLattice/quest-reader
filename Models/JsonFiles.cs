@@ -22,6 +22,10 @@ public record ThreadPost
     public ChapterMetadata? Chapter { get; set; }
     [JsonIgnore]
     public bool AuthorPost { get; set; } = false;
+    [JsonIgnore]
+    public int? FileHeight { get; set; }
+    [JsonIgnore]
+    public int? FileWidth { get; set; }
 }
 
 public record Metadata

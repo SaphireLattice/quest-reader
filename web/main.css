@@ -115,17 +115,19 @@ a:visited {
 }
 
 .post-image {
-    margin: 0;
+    margin: 0 0 1rem;
     align-self: center;
+    /* Note: make sure to check this does not break main.ts if changed! */
     max-width: 95%;
 }
 
 .post-image img {
     max-width: 100%;
+    display: block;
 }
 
 .post-text {
-    padding: 16px 40px;
+    padding: 0 40px 16px;
 }
 
 

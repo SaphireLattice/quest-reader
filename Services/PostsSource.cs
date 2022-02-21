@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using QuestReader.Models;
+using SixLabors.ImageSharp;
 
 public class PostsSource
 {
@@ -60,6 +61,20 @@ public class PostsSource
         var referenced = Accepted.SelectMany(p => p.ParsedContent!.GetReferences());
         Accepted.UnionWith(Posts.Where(p => referenced.Contains(p.Id)));
         Accepted = Accepted.OrderBy(p => p.Id).ToHashSet();
+
+        FileDownloader.DownloadList(BasePath, Metadata.AssetsBaseUrl, Accepted.Where(p => p.File is not null).Select(p => p.File!)).Wait();
+
+        foreach (var post in Accepted.Where(f => f.File is not null))
+        {
+            using var imageStream = File.OpenRead(Path.Combine(BasePath, "assets", post.File!));
+            IImageInfo imageInfo = Image.Identify(imageStream);
+            if (imageInfo is null) {
+                Console.Out.WriteLine($"Not a valid image: {post.File!}");
+                continue;
+            }
+            post.FileHeight = imageInfo.Height;
+            post.FileWidth = imageInfo.Width;
+        }
 
         Console.Out.WriteLine($"Done loading with {Accepted.Count} posts, referencing {Accepted.Where(a => a.File is not null).Count()} files");
     }
