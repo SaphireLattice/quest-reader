@@ -81,7 +81,7 @@
             {
                 @if (item.IsChapterAnnounce) {
                     // This might nullref throw, but let's assume this bool is always set only when this is set too
-                    <h2 id="chapter-@item.Chapter!.Id" class="chapter-announce">
+                    <h2 id="chapter-@item.Chapter!.Id" class="chapter-announce" data-announcing-post="@item.Id">
                         <a class="chapter-anchor" href="#chapter-@item.Chapter.Id">#</a> <span class="chapter-name">@item.Chapter.Name</span> - <span class="chapter-subtitle">@item.Chapter.Subtitle</span>
                     </h2>
                 }
