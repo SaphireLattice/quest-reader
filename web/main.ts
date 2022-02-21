@@ -4,9 +4,10 @@ class VisitAnalytics {
     lastWidth: number = 0;
     resizeTimeout: number | null = null;
     images: HTMLImageElement[] = [];
+    suggestionImages: HTMLImageElement[] = [];
 
     constructor() {
-        window.plausible = window.plausible || function () { (window.plausible.q = window.plausible.q || []).push(arguments); };
+        (window as any).plausible = (window as any).plausible || function () { ((window as any).plausible.q = (window as any).plausible.q || []).push(arguments); };
 
         // Hopefull this won't miss anything
         if (document.readyState == "interactive")
@@ -40,10 +41,15 @@ class VisitAnalytics {
         }
 
         {
-            var all = document.querySelectorAll(".image-post");
+            var all = document.querySelectorAll(".image-post:not(.suggestion-post)");
             all.forEach(elem => {
                 this.lazyloadObserver.observe(elem);
                 this.images.push(elem.querySelector(".post-image > img"));
+            });
+            var suggestions = document.querySelectorAll(".image-post.suggestion-post");
+            all.forEach(elem => {
+                this.lazyloadObserver.observe(elem);
+                this.suggestionImages.push(elem.querySelector(".post-image > img"));
             });
 
             this.resizeTimeout = setTimeout(() => this.resizeDebounced(), 200);
@@ -59,7 +65,8 @@ class VisitAnalytics {
 
                 if (announcingPost != null && !e.target.parentElement.querySelector<HTMLImageElement>(`#post-${announcingPost} img`).complete)
                     return;
-                window.plausible("landmark", {props: {id: e.target.id ? e.target.id : e.target.tagName}});
+                if (window['plausible'])
+                    (window as any).plausible("landmark", {props: {id: e.target.id ? e.target.id : e.target.tagName}});
                 observer.unobserve(e.target);
                 console.log("Reached landmark " + e.target.id ? e.target.id : e.target.tagName);
             }
@@ -74,12 +81,20 @@ class VisitAnalytics {
         // Note: depends on main.css
         const elemWidth = Math.floor(elem.clientWidth * 0.95);
 
+        const elemSuggestion = document.querySelector(".suggestion-post .post-content");
+        const elemSuggestionWidth = Math.floor((elemSuggestion?.clientWidth ?? 0) * 0.95);
+
         if (elemWidth != this.lastWidth) {
             this.lastWidth = elemWidth;
             this.images.forEach(img => {
                 const naturalHeight = +img.getAttribute("data-height");
                 const naturalWidth = +img.getAttribute("data-width");
                 img.height = Math.floor(naturalHeight * Math.min(1, elemWidth / naturalWidth));
+            })
+            this.suggestionImages.forEach(img => {
+                const naturalHeight = +img.getAttribute("data-height");
+                const naturalWidth = +img.getAttribute("data-width");
+                img.height = Math.floor(naturalHeight * Math.min(1, elemSuggestionWidth / naturalWidth));
             })
         }
     }
